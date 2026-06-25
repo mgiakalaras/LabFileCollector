@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>LabFileCollector</AssemblyName>
+    <RootNamespace>LabFileCollector</RootNamespace>
+    <ApplicationIcon>Assets\LabFileCollector.ico</ApplicationIcon>
+    <Version>1.1.0</Version>
+    <FileVersion>1.1.0.0</FileVersion>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
+    <Company>School Lab Tools</Company>
+    <Product>School Lab File Collector</Product>
+    <Copyright>© 2026 - School Lab File Collector</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

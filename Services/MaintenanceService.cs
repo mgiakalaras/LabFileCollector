@@ -484,7 +484,7 @@ public static class MaintenanceService
 
     private static string NormalizeSourceUserRoot(string value)
     {
-        value = string.IsNullOrWhiteSpace(value) ? @"C:\Users\Student" : value.Trim();
+        value = string.IsNullOrWhiteSpace(value) ? AppSettings.DefaultSourceUserRoot : Environment.ExpandEnvironmentVariables(value.Trim());
         return value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 

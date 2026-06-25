@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
 
@@ -36,7 +37,10 @@ public partial class MainForm : Form
     private FlowLayoutPanel? _diskCardsFlow;
     private FlowLayoutPanel? _networkCardsFlow;
     private Label? lblSysUpdated;
-    private readonly System.Windows.Forms.Timer _systemInfoTimer = new() { Interval = 2500 };
+    private PictureBox? _nyxLogoBox;
+    private readonly Dictionary<string, MetricCard> _driveCardsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, MetricCard> _networkCardsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly System.Windows.Forms.Timer _systemInfoTimer = new() { Interval = 1500 };
     private readonly CpuUsageSampler _cpuSampler = new();
     private bool _isUpdatingSystemInfo;
 
@@ -45,6 +49,9 @@ public partial class MainForm : Form
         InitializeComponent();
         CreateSystemInfoSidebar();
         HookPreviewDrawing();
+        lvPreview.Resize += (_, _) => ConfigurePreviewColumnsForScrolling();
+        lvPreview.ItemChecked += lvPreview_ItemChecked;
+        clbSources.Resize += (_, _) => UpdateSourcesHorizontalExtent();
         LoadApplicationVisuals();
         LoadSettingsToUi();
         AutoDetectPcOnStartup();
@@ -52,6 +59,8 @@ public partial class MainForm : Form
         UpdateExtensionsEnabled();
         ApplySelectedTheme();
         UpdateSummary();
+        ConfigurePreviewColumnsForScrolling();
+        UpdateSourcesHorizontalExtent();
 
         // Do not read system information synchronously in the constructor.
         // On some lab PCs, disk/network enumeration can take a while and the form
@@ -68,6 +77,10 @@ public partial class MainForm : Form
         var logo = AppVisuals.LoadLogoImage();
         if (logo is not null)
             picLogo.Image = logo;
+
+        var nyxLogo = AppVisuals.LoadNyxSystemsLogoImage();
+        if (nyxLogo is not null && _nyxLogoBox is not null)
+            _nyxLogoBox.Image = nyxLogo;
     }
 
 
@@ -105,7 +118,32 @@ public partial class MainForm : Form
             Margin = new Padding(0)
         };
 
-        _systemSidebar.Controls.Add(_systemInfoFlow);
+        var sidebarLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            Tag = "sidebar-layout"
+        };
+        sidebarLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        sidebarLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        sidebarLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        _nyxLogoBox = new PictureBox
+        {
+            Dock = DockStyle.Fill,
+            Height = 74,
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Margin = new Padding(0, 10, 0, 0),
+            Padding = new Padding(4),
+            Tag = "nyx-logo"
+        };
+
+        sidebarLayout.Controls.Add(_systemInfoFlow, 0, 0);
+        sidebarLayout.Controls.Add(_nyxLogoBox, 0, 1);
+        _systemSidebar.Controls.Add(sidebarLayout);
         _outerLayout.Controls.Add(rootLayout, 0, 0);
         _outerLayout.Controls.Add(_systemSidebar, 1, 0);
         Controls.Add(_outerLayout);
@@ -126,7 +164,7 @@ public partial class MainForm : Form
         AddSystemInfoHeader("Δίκτυο LAN / Wi‑Fi");
         _networkCardsFlow = AddCardsFlow();
 
-        lblSysUpdated = AddSystemInfoValue("Τελευταία ενημέρωση: —", 34);
+        lblSysUpdated = AddSystemInfoValue("Live παρακολούθηση ενεργή", 34);
     }
 
     private void AddSystemInfoHeader(string text)
@@ -208,9 +246,6 @@ public partial class MainForm : Form
             return;
 
         _isUpdatingSystemInfo = true;
-        if (lblSysUpdated is not null)
-            lblSysUpdated.Text = "Ανάγνωση στοιχείων συστήματος...";
-
         _ = Task.Run(() =>
         {
             try
@@ -235,7 +270,7 @@ public partial class MainForm : Form
                         if (task.Result.Error is not null || task.Result.Snapshot is null)
                         {
                             if (lblSysUpdated is not null)
-                                lblSysUpdated.Text = $"Σφάλμα ανάγνωσης συστήματος: {task.Result.Error?.Message}";
+                                lblSysUpdated.Text = "Σφάλμα ανάγνωσης συστήματος";
                             return;
                         }
 
@@ -286,7 +321,8 @@ public partial class MainForm : Form
         RenderDriveCards(snapshot.Drives);
         RenderNetworkCards(snapshot.NetworkAdapters);
 
-        lblSysUpdated!.Text = $"Τελευταία ενημέρωση: {DateTime.Now:HH:mm:ss}";
+        if (lblSysUpdated is not null)
+            lblSysUpdated.Text = "Live παρακολούθηση ενεργή";
     }
 
     private void RenderDriveCards(IReadOnlyList<DriveInfoSnapshot> drives)
@@ -294,29 +330,67 @@ public partial class MainForm : Form
         if (_diskCardsFlow is null)
             return;
 
+        var currentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _diskCardsFlow.SuspendLayout();
-        ClearSidebarFlow(_diskCardsFlow);
+        try
+        {
+            if (drives.Count == 0)
+            {
+                if (_driveCardsByKey.Count > 0)
+                    ClearSidebarFlow(_diskCardsFlow);
 
-        if (drives.Count == 0)
-        {
-            var empty = CreateSidebarNote("Δεν βρέθηκαν διαθέσιμοι τοπικοί δίσκοι.");
-            _diskCardsFlow.Controls.Add(empty);
-        }
-        else
-        {
+                _driveCardsByKey.Clear();
+                if (_diskCardsFlow.Controls.Count == 0)
+                    _diskCardsFlow.Controls.Add(CreateSidebarNote("Δεν βρέθηκαν διαθέσιμοι τοπικοί δίσκοι."));
+                return;
+            }
+
+            foreach (var note in _diskCardsFlow.Controls.OfType<Label>().Where(x => x.Tag?.ToString() == "system-value").ToList())
+            {
+                _diskCardsFlow.Controls.Remove(note);
+                note.Dispose();
+            }
+
             foreach (var drive in drives)
-                _diskCardsFlow.Controls.Add(CreateDriveCard(drive));
-        }
+            {
+                var key = drive.Name;
+                currentKeys.Add(key);
 
-        _diskCardsFlow.ResumeLayout();
+                if (!_driveCardsByKey.TryGetValue(key, out var card))
+                {
+                    card = CreateDriveCard(drive);
+                    _driveCardsByKey[key] = card;
+                    _diskCardsFlow.Controls.Add(card);
+                }
+                else
+                {
+                    UpdateDriveCard(card, drive);
+                }
+            }
+
+            foreach (var stale in _driveCardsByKey.Keys.Where(k => !currentKeys.Contains(k)).ToList())
+            {
+                var card = _driveCardsByKey[stale];
+                _diskCardsFlow.Controls.Remove(card);
+                card.Dispose();
+                _driveCardsByKey.Remove(stale);
+            }
+        }
+        finally
+        {
+            _diskCardsFlow.ResumeLayout();
+        }
     }
+
 
 
     private static void ClearSidebarFlow(FlowLayoutPanel flow)
     {
         foreach (Control control in flow.Controls.Cast<Control>().ToList())
+        {
+            flow.Controls.Remove(control);
             control.Dispose();
-        flow.Controls.Clear();
+        }
     }
 
     private MetricCard CreateDriveCard(DriveInfoSnapshot drive)
@@ -337,25 +411,74 @@ public partial class MainForm : Form
         return card;
     }
 
+
+    private void UpdateDriveCard(MetricCard card, DriveInfoSnapshot drive)
+    {
+        var used = drive.TotalBytes - drive.AvailableBytes;
+        var percent = drive.TotalBytes > 0 ? used * 100.0 / drive.TotalBytes : 0;
+        var label = string.IsNullOrWhiteSpace(drive.Label) ? drive.Name.TrimEnd('\\') : drive.Label;
+        card.Title = $"Δίσκος {drive.Name.TrimEnd('\\')} • {drive.Format}";
+        card.PrimaryText = $"{percent:0}% δεσμευμένο";
+        card.SecondaryText = $"{SystemInfoService.HumanBytes(drive.AvailableBytes)} ελεύθερα / {SystemInfoService.HumanBytes(drive.TotalBytes)} • {Shorten(label, 18)}";
+        card.Percent = percent;
+        StyleMetricCard(card);
+    }
+
     private void RenderNetworkCards(IReadOnlyList<NetworkInfoSnapshot> adapters)
     {
         if (_networkCardsFlow is null)
             return;
 
+        var currentKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _networkCardsFlow.SuspendLayout();
-        ClearSidebarFlow(_networkCardsFlow);
+        try
+        {
+            if (adapters.Count == 0)
+            {
+                if (_networkCardsByKey.Count > 0)
+                    ClearSidebarFlow(_networkCardsFlow);
 
-        if (adapters.Count == 0)
-        {
-            _networkCardsFlow.Controls.Add(CreateSidebarNote("Δεν βρέθηκε ενεργός LAN/Wi‑Fi adapter."));
-        }
-        else
-        {
+                _networkCardsByKey.Clear();
+                if (_networkCardsFlow.Controls.Count == 0)
+                    _networkCardsFlow.Controls.Add(CreateSidebarNote("Δεν βρέθηκε ενεργός LAN/Wi‑Fi adapter."));
+                return;
+            }
+
+            foreach (var note in _networkCardsFlow.Controls.OfType<Label>().Where(x => x.Tag?.ToString() == "system-value").ToList())
+            {
+                _networkCardsFlow.Controls.Remove(note);
+                note.Dispose();
+            }
+
             foreach (var adapter in adapters)
-                _networkCardsFlow.Controls.Add(CreateNetworkCard(adapter));
-        }
+            {
+                var key = adapter.Name;
+                currentKeys.Add(key);
 
-        _networkCardsFlow.ResumeLayout();
+                if (!_networkCardsByKey.TryGetValue(key, out var card))
+                {
+                    card = CreateNetworkCard(adapter);
+                    _networkCardsByKey[key] = card;
+                    _networkCardsFlow.Controls.Add(card);
+                }
+                else
+                {
+                    UpdateNetworkCard(card, adapter);
+                }
+            }
+
+            foreach (var stale in _networkCardsByKey.Keys.Where(k => !currentKeys.Contains(k)).ToList())
+            {
+                var card = _networkCardsByKey[stale];
+                _networkCardsFlow.Controls.Remove(card);
+                card.Dispose();
+                _networkCardsByKey.Remove(stale);
+            }
+        }
+        finally
+        {
+            _networkCardsFlow.ResumeLayout();
+        }
     }
 
     private MetricCard CreateNetworkCard(NetworkInfoSnapshot adapter)
@@ -377,6 +500,22 @@ public partial class MainForm : Form
         };
         StyleMetricCard(card);
         return card;
+    }
+
+
+    private void UpdateNetworkCard(MetricCard card, NetworkInfoSnapshot adapter)
+    {
+        var speed = adapter.SpeedBitsPerSecond > 0
+            ? $"{adapter.SpeedBitsPerSecond / 1_000_000.0:0} Mbps"
+            : "άγνωστη ταχύτητα";
+        var percent = adapter.SpeedBitsPerSecond > 0
+            ? Math.Clamp(adapter.SpeedBitsPerSecond / 1_000_000_000.0 * 100.0, 0, 100)
+            : (double?)null;
+        card.Title = Shorten(adapter.Name, 32);
+        card.PrimaryText = speed;
+        card.SecondaryText = $"{adapter.IpAddress} • {adapter.Status}";
+        card.Percent = percent;
+        StyleMetricCard(card);
     }
 
     private Label CreateSidebarNote(string text)
@@ -416,26 +555,14 @@ public partial class MainForm : Form
         _isLoadingUi = true;
         try
         {
-        cboPc.Items.Clear();
-        AddComputerNameOption(Environment.MachineName);
-        for (var i = 1; i <= 12; i++)
-            AddComputerNameOption($"PC{i}");
-
-        cboPc.Text = string.IsNullOrWhiteSpace(_settings.LastSelectedPc)
-            ? Environment.MachineName
-            : _settings.LastSelectedPc;
+        txtComputerName.Text = GetSanitizedMachineName();
 
         txtDestinationRoot.Text = _settings.DestinationRoot;
-        txtSourceUserRoot.Text = string.IsNullOrWhiteSpace(_settings.SourceUserRoot) ? @"C:\Users\Student" : _settings.SourceUserRoot;
+        txtSourceUserRoot.Text = ResolveInitialSourceUserRoot(_settings.SourceUserRoot);
         txtExtensions.Text = EnsureRequiredExtensions(_settings.ExtensionFilter, ".glo", ".psg");
         rbAllFiles.Checked = _settings.IncludeAllFiles;
         rbSelectedExtensions.Checked = !_settings.IncludeAllFiles;
-        chkCleanUserTemp.Checked = _settings.CleanUserTemp;
-        chkCleanWindowsTemp.Checked = _settings.CleanWindowsTemp;
-        chkCleanDownloadsPlanned.Checked = _settings.CleanDownloadsPlannedFiles;
-        chkEmptyRecycleBin.Checked = _settings.EmptyRecycleBin;
-        chkOptimizeDrive.Checked = _settings.OptimizeSystemDrive;
-        chkCleanWindowsUpdateComponents.Checked = _settings.CleanWindowsUpdateComponents;
+        LoadMaintenanceSettingsToHiddenControls();
 
         cboTheme.Items.Clear();
         cboTheme.Items.AddRange(new object[] { ThemeSystem, ThemeLight, ThemeDark, ThemeNotepadPlusPlus, ThemeNord, ThemeDracula });
@@ -448,6 +575,7 @@ public partial class MainForm : Form
             if (!string.IsNullOrWhiteSpace(custom) && !clbSources.Items.Cast<object>().Any(x => string.Equals(x.ToString(), custom, StringComparison.OrdinalIgnoreCase)))
                 clbSources.Items.Add(custom, true);
         }
+        UpdateSourcesHorizontalExtent();
         }
         finally
         {
@@ -481,9 +609,26 @@ public partial class MainForm : Form
         };
     }
 
+    private static string ResolveInitialSourceUserRoot(string? savedValue)
+    {
+        if (string.IsNullOrWhiteSpace(savedValue))
+            return AppSettings.DefaultSourceUserRoot;
+
+        var normalized = Environment.ExpandEnvironmentVariables(savedValue.Trim()).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (string.Equals(normalized, AppSettings.LegacyStudentSourceRoot, StringComparison.OrdinalIgnoreCase)
+            && !Directory.Exists(AppSettings.LegacyStudentSourceRoot)
+            && Directory.Exists(AppSettings.DefaultSourceUserRoot))
+        {
+            return AppSettings.DefaultSourceUserRoot;
+        }
+
+        return normalized;
+    }
+
     private static string NormalizeSourceUserRoot(string value)
     {
-        value = string.IsNullOrWhiteSpace(value) ? @"C:\Users\Student" : value.Trim();
+        value = string.IsNullOrWhiteSpace(value) ? AppSettings.DefaultSourceUserRoot : Environment.ExpandEnvironmentVariables(value.Trim());
         return value.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
@@ -491,15 +636,9 @@ public partial class MainForm : Form
     {
         _settings.DestinationRoot = txtDestinationRoot.Text.Trim();
         _settings.SourceUserRoot = NormalizeSourceUserRoot(txtSourceUserRoot.Text);
-        _settings.LastSelectedPc = GetComputerFolderName();
+        _settings.LastSelectedPc = GetComputerFolderName(); // stored only for compatibility; PC name is always read from Windows
         _settings.ExtensionFilter = txtExtensions.Text.Trim();
         _settings.IncludeAllFiles = rbAllFiles.Checked;
-        _settings.CleanUserTemp = chkCleanUserTemp.Checked;
-        _settings.CleanWindowsTemp = chkCleanWindowsTemp.Checked;
-        _settings.CleanDownloadsPlannedFiles = chkCleanDownloadsPlanned.Checked;
-        _settings.EmptyRecycleBin = chkEmptyRecycleBin.Checked;
-        _settings.OptimizeSystemDrive = chkOptimizeDrive.Checked;
-        _settings.CleanWindowsUpdateComponents = chkCleanWindowsUpdateComponents.Checked;
         _settings.ThemeMode = GetSelectedThemeMode();
         _settings.CustomSourcePaths = clbSources.Items
             .Cast<object>()
@@ -513,10 +652,26 @@ public partial class MainForm : Form
             MessageBox.Show("Οι ρυθμίσεις αποθηκεύτηκαν.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
+    private void LoadMaintenanceSettingsToHiddenControls()
+    {
+        chkCleanUserTemp.Checked = _settings.CleanUserTemp;
+        chkCleanWindowsTemp.Checked = _settings.CleanWindowsTemp;
+        chkCleanDownloadsPlanned.Checked = _settings.CleanDownloadsPlannedFiles;
+        chkEmptyRecycleBin.Checked = _settings.EmptyRecycleBin;
+        chkOptimizeDrive.Checked = _settings.OptimizeSystemDrive;
+        chkCleanWindowsUpdateComponents.Checked = _settings.CleanWindowsUpdateComponents;
+    }
+
     private bool IsCustomSourcePath(string path)
     {
         var defaults = new HashSet<string>(GetDefaultSourcePaths(), StringComparer.OrdinalIgnoreCase);
         return !defaults.Contains(path);
+    }
+
+    private void btnUseCurrentUserRoot_Click(object? sender, EventArgs e)
+    {
+        txtSourceUserRoot.Text = AppSettings.DefaultSourceUserRoot;
+        btnApplySourceUserRoot_Click(sender, e);
     }
 
     private void btnApplySourceUserRoot_Click(object? sender, EventArgs e)
@@ -537,6 +692,7 @@ public partial class MainForm : Form
             if (!string.IsNullOrWhiteSpace(custom) && !clbSources.Items.Cast<object>().Any(x => string.Equals(x.ToString(), custom, StringComparison.OrdinalIgnoreCase)))
                 clbSources.Items.Add(custom, true);
         }
+        UpdateSourcesHorizontalExtent();
 
         SaveSettingsFromUi(showMessage: false);
         WriteStatus($"Οι βασικές πηγές ενημερώθηκαν σε {txtSourceUserRoot.Text}.");
@@ -583,6 +739,7 @@ public partial class MainForm : Form
         if (!clbSources.Items.Cast<object>().Any(x => string.Equals(x.ToString(), path, StringComparison.OrdinalIgnoreCase)))
             clbSources.Items.Add(path, true);
 
+        UpdateSourcesHorizontalExtent();
         txtCustomSource.Clear();
     }
 
@@ -597,6 +754,7 @@ public partial class MainForm : Form
         }
 
         clbSources.Items.Remove(clbSources.SelectedItem);
+        UpdateSourcesHorizontalExtent();
     }
 
     private async void btnScan_Click(object? sender, EventArgs e)
@@ -650,6 +808,28 @@ public partial class MainForm : Form
             MessageBox.Show("Δεν υπάρχει ακόμα log από αυτή τη συνεδρία.", "Log", MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
+    private void btnMaintenance_Click(object? sender, EventArgs e)
+    {
+        SaveSettingsFromUi(showMessage: false);
+        using var form = new MaintenanceForm(
+            _settings,
+            NormalizeSourceUserRoot(txtSourceUserRoot.Text),
+            txtDestinationRoot.Text.Trim(),
+            GetComputerFolderName(),
+            ShouldUseDarkTheme(),
+            WriteStatus);
+
+        form.ShowDialog(this);
+        LoadMaintenanceSettingsToHiddenControls();
+        UpdateSummary();
+    }
+
+    private void btnHistory_Click(object? sender, EventArgs e)
+    {
+        using var form = new HistoryForm(txtDestinationRoot.Text.Trim(), ShouldUseDarkTheme());
+        form.ShowDialog(this);
+    }
+
     private void btnHelp_Click(object? sender, EventArgs e)
     {
         using var form = new HelpForm(ShouldUseDarkTheme());
@@ -662,17 +842,6 @@ public partial class MainForm : Form
         form.ShowDialog(this);
     }
 
-    private void cboPc_SelectedIndexChanged(object? sender, EventArgs e)
-    {
-        UpdateFinalPathLabel();
-        UpdateSummary();
-    }
-
-    private void cboPc_TextChanged(object? sender, EventArgs e)
-    {
-        UpdateFinalPathLabel();
-        UpdateSummary();
-    }
 
     private void txtDestinationRoot_TextChanged(object? sender, EventArgs e)
     {
@@ -711,23 +880,24 @@ public partial class MainForm : Form
 
     private void SetComputerNameFromWindows(bool showStatus)
     {
-        var machineName = Environment.MachineName.Trim();
-        if (string.IsNullOrWhiteSpace(machineName))
-            machineName = "PC";
-
-        AddComputerNameOption(machineName);
-        cboPc.Text = machineName;
+        var machineName = GetSanitizedMachineName();
+        txtComputerName.Text = machineName;
 
         if (showStatus)
             WriteStatus($"Ορίστηκε όνομα υπολογιστή από Windows: {machineName}");
     }
 
-    private void AddComputerNameOption(string name)
+    private static string GetSanitizedMachineName()
     {
-        name = (name ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(name)) return;
-        if (!cboPc.Items.Cast<object>().Any(x => string.Equals(x.ToString(), name, StringComparison.OrdinalIgnoreCase)))
-            cboPc.Items.Add(name);
+        var machineName = (Environment.MachineName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(machineName))
+            machineName = "PC";
+
+        foreach (var c in Path.GetInvalidFileNameChars())
+            machineName = machineName.Replace(c, '_');
+
+        machineName = machineName.Trim().TrimEnd('.');
+        return string.IsNullOrWhiteSpace(machineName) ? "PC" : machineName;
     }
 
     private static string NormalizeThemeMode(string? value)
@@ -783,6 +953,8 @@ public partial class MainForm : Form
         lvPreview.BackColor = _palette.InputBack;
         lvPreview.ForeColor = _palette.Text;
         lvPreview.GridLines = true;
+        ConfigurePreviewColumnsForScrolling();
+        UpdateSourcesHorizontalExtent();
         lvPreview.Invalidate();
 
         txtStatus.BackColor = _palette.StatusBack;
@@ -831,6 +1003,13 @@ public partial class MainForm : Form
                 case Label label when child.Tag?.ToString() == "system-value":
                     label.ForeColor = _palette.Text;
                     label.BackColor = _palette.CardBack;
+                    break;
+                case PictureBox picture when child.Tag?.ToString() == "nyx-logo":
+                    picture.BackColor = _palette.SidebarBack;
+                    break;
+                case TableLayoutPanel layout when child.Tag?.ToString() == "sidebar-layout":
+                    layout.BackColor = _palette.SidebarBack;
+                    StyleSidebarControlTree(layout);
                     break;
                 default:
                     child.ForeColor = _palette.Text;
@@ -887,6 +1066,12 @@ public partial class MainForm : Form
                 button.FlatAppearance.BorderColor = palette.ButtonBorder;
                 button.FlatAppearance.MouseOverBackColor = palette.ButtonHover;
                 button.FlatAppearance.MouseDownBackColor = palette.ButtonPressed;
+                break;
+            case ModernGroupBox modernGroupBox:
+                modernGroupBox.BackColor = palette.CardBack;
+                modernGroupBox.ForeColor = palette.Text;
+                modernGroupBox.BorderColor = palette.ButtonBorder;
+                modernGroupBox.Invalidate();
                 break;
             case GroupBox:
                 control.BackColor = palette.CardBack;
@@ -985,6 +1170,46 @@ public partial class MainForm : Form
             ApplyModernScrollbarTheme(child, dark);
     }
 
+    private void ConfigurePreviewColumnsForScrolling()
+    {
+        if (lvPreview.Columns.Count == 0)
+            return;
+
+        // Keep the important path columns wide enough. When the sum of columns is
+        // wider than the visible area, ListView shows the horizontal scrollbar,
+        // which is much better for long school/network paths than squeezing text.
+        colFile.Width = 260;
+        colPlacement.Width = 90;
+        colFolder.Width = 260;
+        colSize.Width = 90;
+        colSource.Width = 260;
+        colDestination.Width = Math.Max(900, lvPreview.ClientSize.Width - 420);
+
+        lvPreview.Scrollable = true;
+        lvPreview.HideSelection = false;
+    }
+
+    private void UpdateSourcesHorizontalExtent()
+    {
+        try
+        {
+            var maxWidth = 0;
+            foreach (var item in clbSources.Items)
+            {
+                var text = item?.ToString() ?? string.Empty;
+                var measured = TextRenderer.MeasureText(text, clbSources.Font).Width + 42;
+                if (measured > maxWidth)
+                    maxWidth = measured;
+            }
+
+            clbSources.HorizontalExtent = Math.Max(clbSources.ClientSize.Width + 40, maxWidth);
+        }
+        catch
+        {
+            // Scrollbar sizing is purely cosmetic. Ignore any GDI/handle timing issue.
+        }
+    }
+
     private void HookPreviewDrawing()
     {
         if (_previewDrawingHooked)
@@ -994,13 +1219,14 @@ public partial class MainForm : Form
 
         lvPreview.DrawColumnHeader += (_, e) =>
         {
+            var headerText = e.Header?.Text ?? string.Empty;
             using var backBrush = new SolidBrush(_palette.ListHeaderBack);
             using var borderPen = new Pen(_palette.GridLine);
             e.Graphics.FillRectangle(backBrush, e.Bounds);
             e.Graphics.DrawRectangle(borderPen, e.Bounds);
             TextRenderer.DrawText(
                 e.Graphics,
-                e.Header.Text,
+                headerText,
                 e.Font,
                 new Rectangle(e.Bounds.X + 8, e.Bounds.Y, e.Bounds.Width - 10, e.Bounds.Height),
                 _palette.TitleText,
@@ -1014,7 +1240,12 @@ public partial class MainForm : Form
 
         lvPreview.DrawSubItem += (_, e) =>
         {
-            var selected = e.Item.Selected;
+            var item = e.Item;
+            var subItem = e.SubItem;
+            if (item is null || subItem is null)
+                return;
+
+            var selected = item.Selected;
             var backColor = selected ? _palette.SelectionBack : (e.ItemIndex % 2 == 0 ? _palette.InputBack : _palette.RowAltBack);
             var foreColor = selected ? _palette.SelectionText : _palette.InputText;
             using var backBrush = new SolidBrush(backColor);
@@ -1023,11 +1254,21 @@ public partial class MainForm : Form
             e.Graphics.FillRectangle(backBrush, e.Bounds);
             e.Graphics.DrawRectangle(gridPen, e.Bounds);
 
+            var textBounds = new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 8, e.Bounds.Height);
+            if (e.ColumnIndex == 0)
+            {
+                var checkState = item.Checked ? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
+                var glyph = CheckBoxRenderer.GetGlyphSize(e.Graphics, checkState);
+                var checkLocation = new Point(e.Bounds.X + 5, e.Bounds.Y + Math.Max(0, (e.Bounds.Height - glyph.Height) / 2));
+                CheckBoxRenderer.DrawCheckBox(e.Graphics, checkLocation, checkState);
+                textBounds = new Rectangle(e.Bounds.X + glyph.Width + 12, e.Bounds.Y, Math.Max(1, e.Bounds.Width - glyph.Width - 14), e.Bounds.Height);
+            }
+
             TextRenderer.DrawText(
                 e.Graphics,
-                e.SubItem.Text,
-                e.Item.Font,
-                new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 8, e.Bounds.Height),
+                subItem.Text,
+                item.Font,
+                textBounds,
                 foreColor,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
         };
@@ -1193,6 +1434,108 @@ public partial class MainForm : Form
         }
     }
 
+    private void lvPreview_ItemChecked(object? sender, ItemCheckedEventArgs e)
+    {
+        if (e.Item.Tag is PlannedFile plannedFile)
+        {
+            plannedFile.IsSelected = e.Item.Checked;
+            UpdateSummary();
+        }
+    }
+
+    private void btnSelectAllPreview_Click(object? sender, EventArgs e)
+    {
+        SetAllPreviewItemsChecked(true);
+    }
+
+    private void btnClearPreviewSelection_Click(object? sender, EventArgs e)
+    {
+        SetAllPreviewItemsChecked(false);
+    }
+
+    private void btnSelectFolderPreview_Click(object? sender, EventArgs e)
+    {
+        SetSameFolderAsSelected(true);
+    }
+
+    private void btnClearFolderPreview_Click(object? sender, EventArgs e)
+    {
+        SetSameFolderAsSelected(false);
+    }
+
+    private void SetAllPreviewItemsChecked(bool isChecked)
+    {
+        lvPreview.BeginUpdate();
+        try
+        {
+            foreach (ListViewItem item in lvPreview.Items)
+                item.Checked = isChecked;
+
+            foreach (var item in _currentPlan)
+                item.IsSelected = isChecked;
+        }
+        finally
+        {
+            lvPreview.EndUpdate();
+        }
+        UpdateSummary();
+    }
+
+    private void SetSameFolderAsSelected(bool isChecked)
+    {
+        if (lvPreview.SelectedItems.Count == 0 || lvPreview.SelectedItems[0].Tag is not PlannedFile selected)
+        {
+            MessageBox.Show("Επίλεξε πρώτα ένα αρχείο από τον φάκελο που θέλεις να αλλάξεις.", "Επιλογή φακέλου", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var sourceRoot = selected.SourceRoot;
+        var relativeFolder = selected.RelativeFolder;
+        var sourceLabel = selected.SourceLabel;
+
+        var matches = _currentPlan.Where(x =>
+            string.Equals(x.SourceRoot, sourceRoot, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(x.SourceLabel, sourceLabel, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(x.RelativeFolder, relativeFolder, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        foreach (var planned in matches)
+            planned.IsSelected = isChecked;
+
+        lvPreview.BeginUpdate();
+        try
+        {
+            foreach (ListViewItem row in lvPreview.Items)
+            {
+                if (row.Tag is PlannedFile planned && matches.Contains(planned))
+                    row.Checked = isChecked;
+            }
+        }
+        finally
+        {
+            lvPreview.EndUpdate();
+        }
+
+        var action = isChecked ? "επιλέχθηκαν" : "απορρίφθηκαν";
+        var folderName = string.IsNullOrWhiteSpace(relativeFolder) ? "χύμα αρχεία στη ρίζα της πηγής" : relativeFolder;
+        WriteStatus($@"{matches.Count} αρχεία {action} από: {sourceLabel}\{folderName}");
+        UpdateSummary();
+    }
+
+    private void SyncPreviewSelectionToPlan()
+    {
+        foreach (ListViewItem row in lvPreview.Items)
+        {
+            if (row.Tag is PlannedFile planned)
+                planned.IsSelected = row.Checked;
+        }
+    }
+
+    private List<PlannedFile> GetSelectedPlan()
+    {
+        SyncPreviewSelectionToPlan();
+        return _currentPlan.Where(x => x.IsSelected).ToList();
+    }
+
     private async Task<bool> ScanAsync()
     {
         SaveSettingsFromUi(showMessage: false);
@@ -1297,7 +1640,11 @@ public partial class MainForm : Form
             lvPreview.Items.Clear();
             foreach (var item in _currentPlan.Take(5000))
             {
-                var row = new ListViewItem(Path.GetFileName(item.SourcePath));
+                var row = new ListViewItem(Path.GetFileName(item.SourcePath))
+                {
+                    Checked = item.IsSelected,
+                    Tag = item
+                };
                 row.SubItems.Add(item.PlacementLabel);
                 row.SubItems.Add(item.PreviewFolder);
                 row.SubItems.Add(FileTransferService.HumanBytes(item.SizeBytes));
@@ -1310,6 +1657,8 @@ public partial class MainForm : Form
         {
             lvPreview.EndUpdate();
         }
+
+        ConfigurePreviewColumnsForScrolling();
     }
 
     private async Task ExecuteAsync()
@@ -1320,9 +1669,12 @@ public partial class MainForm : Form
             if (!scanOk) return;
         }
 
-        if (_currentPlan.Count == 0)
+        SyncPreviewSelectionToPlan();
+        var selectedPlan = GetSelectedPlan();
+
+        if (selectedPlan.Count == 0)
         {
-            MessageBox.Show("Δεν βρέθηκαν αρχεία για εκτέλεση.", "Πληροφορία", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Δεν έχουν επιλεγεί αρχεία για εκτέλεση. Τσέκαρε αρχεία ή χρησιμοποίησε τα κουμπιά επιλογής στο preview.", "Πληροφορία", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -1337,7 +1689,7 @@ public partial class MainForm : Form
             if (confirm != DialogResult.Yes) return;
         }
 
-        var totalBytes = _currentPlan.Sum(x => x.SizeBytes);
+        var totalBytes = selectedPlan.Sum(x => x.SizeBytes);
         var availableBytes = FileTransferService.TryGetAvailableBytes(txtDestinationRoot.Text.Trim());
         if (availableBytes.HasValue && availableBytes.Value < totalBytes)
         {
@@ -1351,7 +1703,7 @@ public partial class MainForm : Form
 
         SetBusy(true);
         _cts = new CancellationTokenSource();
-        progressBar.Maximum = Math.Max(_currentPlan.Count, 1);
+        progressBar.Maximum = Math.Max(selectedPlan.Count, 1);
         progressBar.Value = 0;
 
         try
@@ -1363,7 +1715,7 @@ public partial class MainForm : Form
                 lblSummary.Text = $"{p.Current}/{p.Total} - {p.Status} - {p.CurrentFile}";
             });
 
-            var result = await FileTransferService.ExecuteAsync(_currentPlan, mode, progress, _cts.Token);
+            var result = await FileTransferService.ExecuteAsync(selectedPlan, mode, progress, _cts.Token);
             _lastLogPath = FileTransferService.WriteCsvLog(txtDestinationRoot.Text.Trim(), GetComputerFolderName(), result);
             _lastTransferResult = result.Operations.Count > 0 ? result : null;
 
@@ -1376,7 +1728,7 @@ public partial class MainForm : Form
             {
                 maintenanceLogPath = await RunMaintenanceIfRequestedAsync(result, _cts.Token);
             }
-            else if (MaintenanceService.HasAny(GetCleanupOptions()))
+            else if (_settings.RunMaintenanceAfterTransfer && MaintenanceService.HasAny(GetCleanupOptions()))
             {
                 WriteStatus("Maintenance: παραλείφθηκε επειδή η ενέργεια είναι Μόνο σάρωση/preview.");
             }
@@ -1466,6 +1818,9 @@ public partial class MainForm : Form
 
     private async Task<string?> RunMaintenanceIfRequestedAsync(TransferResult transferResult, CancellationToken cancellationToken)
     {
+        if (!_settings.RunMaintenanceAfterTransfer)
+            return null;
+
         var options = GetCleanupOptions();
         if (!MaintenanceService.HasAny(options))
             return null;
@@ -1512,12 +1867,12 @@ public partial class MainForm : Form
     {
         return new CleanupOptions
         {
-            CleanUserTemp = chkCleanUserTemp.Checked,
-            CleanWindowsTemp = chkCleanWindowsTemp.Checked,
-            CleanDownloadsPlannedFiles = chkCleanDownloadsPlanned.Checked,
-            EmptyRecycleBin = chkEmptyRecycleBin.Checked,
-            OptimizeSystemDrive = chkOptimizeDrive.Checked,
-            CleanWindowsUpdateComponents = chkCleanWindowsUpdateComponents.Checked
+            CleanUserTemp = _settings.CleanUserTemp,
+            CleanWindowsTemp = _settings.CleanWindowsTemp,
+            CleanDownloadsPlannedFiles = _settings.CleanDownloadsPlannedFiles,
+            EmptyRecycleBin = _settings.EmptyRecycleBin,
+            OptimizeSystemDrive = _settings.OptimizeSystemDrive,
+            CleanWindowsUpdateComponents = _settings.CleanWindowsUpdateComponents
         };
     }
 
@@ -1531,7 +1886,7 @@ public partial class MainForm : Form
         };
 
         if (options.CleanUserTemp)
-            lines.Add(@"• Καθάρισμα C:\Users\Student\AppData\Local\Temp ή του user root που έχεις ορίσει.");
+            lines.Add("• Καθάρισμα Temp του επιλεγμένου προφίλ χρήστη.");
         if (options.CleanWindowsTemp)
             lines.Add("• Καθάρισμα Windows Temp. Κλειδωμένα/προστατευμένα αρχεία θα παραλειφθούν.");
         if (options.CleanDownloadsPlannedFiles)
@@ -1588,7 +1943,7 @@ public partial class MainForm : Form
 
     private string GetComputerFolderName()
     {
-        var name = string.IsNullOrWhiteSpace(cboPc.Text) ? Environment.MachineName : cboPc.Text.Trim();
+        var name = string.IsNullOrWhiteSpace(txtComputerName.Text) ? GetSanitizedMachineName() : txtComputerName.Text.Trim();
         foreach (var c in Path.GetInvalidFileNameChars())
             name = name.Replace(c, '_');
         name = name.Trim().TrimEnd('.');
@@ -1607,12 +1962,13 @@ public partial class MainForm : Form
 
     private void UpdateSummary()
     {
-        var totalBytes = _currentPlan.Sum(x => x.SizeBytes);
-        var looseCount = _currentPlan.Count(x => x.IsLooseFile);
-        var folderCount = _currentPlan.Count - looseCount;
+        var selected = _currentPlan.Where(x => x.IsSelected).ToList();
+        var totalBytes = selected.Sum(x => x.SizeBytes);
+        var looseCount = selected.Count(x => x.IsLooseFile);
+        var folderCount = selected.Count - looseCount;
         var free = FileTransferService.TryGetAvailableBytes(txtDestinationRoot.Text.Trim());
         var freeText = free.HasValue ? FileTransferService.HumanBytes(free.Value) : "άγνωστο";
-        lblSummary.Text = $"Αρχεία: {_currentPlan.Count} | Χύμα: {looseCount} | Σε φακέλους: {folderCount} | Μέγεθος: {FileTransferService.HumanBytes(totalBytes)} | Τελικός φάκελος: {GetPcDestinationRoot()} | Ελεύθερος χώρος: {freeText}";
+        lblSummary.Text = $"Επιλεγμένα: {selected.Count}/{_currentPlan.Count} | Χύμα: {looseCount} | Σε φακέλους: {folderCount} | Μέγεθος: {FileTransferService.HumanBytes(totalBytes)} | Τελικός φάκελος: {GetPcDestinationRoot()} | Ελεύθερος χώρος: {freeText}";
     }
 
     private void WriteStatus(string message)
@@ -1638,6 +1994,11 @@ public partial class MainForm : Form
         btnApplySourceUserRoot.Enabled = !busy;
         btnAddSource.Enabled = !busy;
         btnRemoveSource.Enabled = !busy;
+        btnMaintenance.Enabled = !busy;
+        btnSelectAllPreview.Enabled = !busy;
+        btnClearPreviewSelection.Enabled = !busy;
+        btnSelectFolderPreview.Enabled = !busy;
+        btnClearFolderPreview.Enabled = !busy;
         chkCleanUserTemp.Enabled = !busy;
         chkCleanWindowsTemp.Enabled = !busy;
         chkCleanDownloadsPlanned.Enabled = !busy;

@@ -127,9 +127,24 @@ public static class SystemInfoService
         {
             using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
             var productName = key?.GetValue("ProductName")?.ToString();
+            var editionId = key?.GetValue("EditionID")?.ToString();
             var displayVersion = key?.GetValue("DisplayVersion")?.ToString();
             var releaseId = key?.GetValue("ReleaseId")?.ToString();
             var build = key?.GetValue("CurrentBuildNumber")?.ToString();
+
+            var buildNumber = 0;
+            _ = int.TryParse(build, out buildNumber);
+
+            // Some Windows 11 installations still expose ProductName as
+            // "Windows 10 Pro" in this registry location. The build number is the
+            // reliable discriminator: Windows 11 starts at build 22000.
+            if (buildNumber >= 22000)
+            {
+                if (string.IsNullOrWhiteSpace(productName))
+                    productName = string.IsNullOrWhiteSpace(editionId) ? "Windows 11" : $"Windows 11 {editionId}";
+                else if (productName.StartsWith("Windows 10", StringComparison.OrdinalIgnoreCase))
+                    productName = "Windows 11" + productName["Windows 10".Length..];
+            }
 
             var version = !string.IsNullOrWhiteSpace(displayVersion) ? displayVersion : releaseId;
             var parts = new List<string>();

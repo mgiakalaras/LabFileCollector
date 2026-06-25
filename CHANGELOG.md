@@ -1,61 +1,38 @@
+# Changelog
+
+## v1.6.1
+
+- Fixed build error: missing `ClearSidebarFlow` helper used by sidebar drive/network card refresh.
+- No functional/UI changes from v1.6.0.
+
 # CHANGELOG
 
-## v1.1.0
+## v1.6.0
 
-### System information sidebar
-- Converted the sidebar status blocks into mini chart cards for CPU, RAM, disks and LAN/Wi‑Fi link speed.
-- Added operating system information from Windows registry / runtime fallback.
-- Added currently logged-in Windows user, so the lab operator can quickly see which account is active.
-- Disk cards show used percentage plus free/total capacity.
-- Network cards show adapter name, IPv4, status and link speed.
+Τελευταίο UI/UX polishing πριν από portable release.
 
+### Added
 
-## v1.0.0
+- Νέο modern logo/icon για την εφαρμογή με πιο καθαρή, σύγχρονη αισθητική.
+- Προσθήκη `Nyx Systems` logo στο κάτω μέρος του sidebar.
+- Το preview αρχείων υποστηρίζει πλέον επιλογή/απόρριψη με checkboxes.
+- Νέα κουμπιά preview:
+  - Επιλογή όλων
+  - Αποεπιλογή όλων
+  - Επιλογή ίδιου φακέλου
+  - Απόρριψη ίδιου φακέλου
+- Δυνατότητα να επιλέγονται συγκεκριμένα αρχεία ή ολόκληροι φάκελοι μαθητών μετά τη σάρωση.
+- Τα επιλεγμένα αρχεία είναι αυτά που χρησιμοποιούνται σε Copy/Move.
+- Help/About ενημερώθηκαν για τη νέα ροή επιλογής αρχείων/φακέλων.
 
-### UI / Polishing
-- Added a more modern button control with rounded, flat Windows/Fluent-like rendering.
-- Added extra theme presets:
-  - Σύστημα / Windows
-  - Φωτεινό / Aero
-  - Σκούρο / Aero
-  - Notepad++ Dark
-  - Nord Dark
-  - Dracula
-- Existing Windows accent-color support remains active for the Windows/Aero themes.
-- Added best-effort native scrollbar theming using Explorer / DarkMode_Explorer for ListView, TextBox, CheckedListBox and ComboBox controls.
-  - Note: full rounded scrollbar styling is limited in classic WinForms native controls without replacing the controls completely.
+### Changed
 
-### System information sidebar
-- Added a right-side system information panel.
-- Displays:
-  - computer type / architecture
-  - Windows computer name
-  - CPU model and usage percentage
-  - RAM used / total / free
-  - drive usage and free space
-  - active LAN/Wi‑Fi adapters, IPv4 and link speed
-- Refreshes automatically every 2.5 seconds.
+- Το sidebar ενημερώνει live τα ίδια metric cards αντί να ξαναχτίζει συνεχώς όλες τις κάρτες δίσκων/δικτύου.
+- Αφαιρέθηκε η συνεχής ένδειξη ώρας ενημέρωσης που έδινε αίσθηση “refresh κάθε λίγο”.
+- Το summary δείχνει πλέον επιλεγμένα αρχεία / σύνολο και μέγεθος μόνο των επιλεγμένων.
+- Ενημερώθηκε branding σε Nyx Systems / School Lab File Collector.
 
-### Existing behavior retained
-- Recursive scan with folder structure preservation.
-- Χύμα / Σε φάκελο preview classification.
-- Stop confirmation and safe scan cancellation.
-- Undo last copy/move.
-- Help / About forms.
-- .glo and .psg in the default extensions.
+### Notes
 
-## v0.9.0
-- Added Windows/Aero-inspired theme support and Windows accent color usage.
-
-## v0.8.1
-- Fixed Stop handling to avoid OperationCanceledException during scan.
-
-## v0.8.0
-- Added Stop and Undo last transfer.
-
-## v0.7.1
-- Fixed unescaped path examples in Help/MainForm strings.
-
-## v0.7.0
-- Added recursive folder-preserving scan and Χύμα / Σε φάκελο classification.
-
+- Για να περάσει φάκελος μαθητή αυτούσιος με όλα τα αρχεία του, κάνε scan με “Όλα τα αρχεία” ή πρόσθεσε τον φάκελο ως custom source και μετά χρησιμοποίησε “Επιλογή ίδιου φακέλου”.
+- Αν είναι ενεργό φίλτρο επεκτάσεων, μέσα στους φακέλους θα περάσουν μόνο οι επιλεγμένοι τύποι αρχείων.

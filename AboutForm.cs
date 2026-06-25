@@ -36,7 +36,8 @@ public partial class AboutForm : Form
             "Σκοπός:",
             "• Συλλογή αρχείων μαθητών/εργαστηρίου από επιλεγμένες πηγές.",
             "• Αποθήκευση σε δικτυακό ή τοπικό φάκελο, με υποφάκελο ανά υπολογιστή.",
-            "• Preview πριν από την εκτέλεση και CSV logs για έλεγχο.",
+            "• Preview πριν από την εκτέλεση, με επιλογή/απόρριψη συγκεκριμένων αρχείων ή ολόκληρων φακέλων.",
+            "• CSV logs για έλεγχο και ιστορικό ενεργειών.",
             "• Πλαϊνή μπάρα πληροφοριών συστήματος: CPU, RAM, δίσκοι και LAN.",
             "• Προαιρετικός καθαρισμός Temp/Downloads/Recycle Bin και Windows maintenance.",
             "",
@@ -46,7 +47,7 @@ public partial class AboutForm : Form
             "Σημείωση ασφαλείας:",
             "Το πρόγραμμα δεν σβήνει τυφλά τα Downloads και δεν πειράζει χειροκίνητα τον φάκελο WinSxS. Το Windows Update cleanup γίνεται μέσω DISM.",
             "",
-            "© 2026 - School Lab File Collector"
+            "© 2026 - Nyx Systems / School Lab File Collector"
         });
     }
 

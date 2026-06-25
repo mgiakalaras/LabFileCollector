@@ -17,4 +17,7 @@ public sealed class PlannedFile
     public string PreviewFolder => IsLooseFile ? "(ρίζα πηγής)" : RelativeFolder;
 
     public long SizeBytes { get; set; }
+
+    // Ο χρήστης μπορεί να ξετσεκάρει αρχεία/folders από το preview μετά τη σάρωση.
+    public bool IsSelected { get; set; } = true;
 }

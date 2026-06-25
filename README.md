@@ -1,88 +1,64 @@
 # School Lab File Collector
 
-Windows Forms / .NET 8 tool for collecting student files from lab PCs into a network or local destination folder.
+Portable Windows Forms εργαλείο για συντήρηση σχολικού εργαστηρίου και συλλογή αρχείων μαθητών από κοινά paths σε δικτυακό ή τοπικό προορισμό.
 
-## Main workflow
+## Βασική ιδέα
 
-1. The app detects the Windows computer name automatically.
-2. Choose or confirm the destination root path, for example:
-   - `\\192.168.1.37\2026`
-   - `\\192.168.1.37\shared\Εργασίες Μαθητών\Πληροφορική Γ Λυκείου\2026`
-3. Select source paths, usually under `C:\Users\Student`.
-4. Choose file extensions or select all files.
-5. Scan first.
-6. Review the preview table.
-7. Copy or move only when ready.
+Η εφαρμογή σαρώνει επιλεγμένες πηγές, δείχνει preview, επιτρέπει στον χρήστη να επιλέξει ποια αρχεία ή ποιοι φάκελοι θα περάσουν, και έπειτα κάνει ασφαλή αντιγραφή ή μεταφορά στον τελικό φάκελο του συγκεκριμένου υπολογιστή.
 
-## Folder behavior
-
-The app scans recursively and preserves folder structure.
-
-Example source:
+Παράδειγμα προορισμού:
 
 ```text
-C:\Users\Student\Desktop\Β1\Μαθητής Α\askisi.glo
+\\192.168.1.37\shared\Εργασίες Μαθητών\Πληροφορική Γ Λυκείου\2026\LAB-PC01
 ```
 
-Example destination:
+## Δυνατότητες
 
-```text
-\\192.168.1.37\2026\EDULABS\Desktop\Β1\Μαθητής Α\askisi.glo
-```
+- Αυτόματη ανάγνωση ονόματος υπολογιστή από Windows.
+- Editable root προορισμού.
+- Αυτόματες πηγές από το τρέχον Windows user profile ή χειροκίνητο `C:\Users\...` path.
+- Desktop, Documents, Downloads, Pictures και custom sources.
+- Υποστήριξη αρχείων `.glo` και `.psg`.
+- Αναδρομική σάρωση και διατήρηση δομής φακέλων.
+- Preview με ένδειξη `Χύμα` ή `Σε φάκελο`.
+- Checkboxes για επιλογή συγκεκριμένων αρχείων.
+- Επιλογή/απόρριψη ολόκληρου φακέλου από το preview.
+- Copy ή Move με ασφαλή διαγραφή πηγής μόνο μετά από επιτυχημένη αντιγραφή.
+- Stop με επιβεβαίωση.
+- Undo τελευταίας αντιγραφής/μεταφοράς για την τρέχουσα συνεδρία.
+- Ιστορικό/logs από CSV στον φάκελο `_logs`.
+- Ξεχωριστό popup συντήρησης υπολογιστή.
+- Προαιρετικό cleanup Temp, Downloads του plan, Recycle Bin, DISM Windows Update cleanup και Optimize/TRIM.
+- Sidebar με live CPU/RAM/δίσκους/δίκτυο, λειτουργικό, PC name και logged-in user.
+- Themes: Windows/System, Aero Light/Dark, Notepad++ Dark, Nord Dark, Dracula.
+- Branding: Nyx Systems / School Lab File Collector.
 
-Loose files are marked as `Χύμα`; files inside folders are marked as `Σε φάκελο`.
+## Ροή χρήσης
 
-## Default extensions
+1. Έλεγξε τον προορισμό.
+2. Έλεγξε το user root των πηγών ή πάτα `Τρέχων`.
+3. Διάλεξε πηγές και φίλτρο αρχείων.
+4. Πάτα `Σάρωση`.
+5. Στο preview κράτα τσεκαρισμένα μόνο όσα θέλεις.
+6. Για ολόκληρο φάκελο μαθητή, επίλεξε ένα αρχείο από τον φάκελο και πάτα `Επιλογή ίδιου φακέλου`.
+7. Πάτα `Εκτέλεση` για Copy ή Move.
 
-```text
-.doc;.docx;.xls;.xlsx;.ppt;.pptx;.pdf;.txt;.py;.html;.css;.js;.sb3;.glo;.psg
-```
-
-## UI themes
-
-Version 1.1 includes:
-
-- Σύστημα / Windows
-- Φωτεινό / Aero
-- Σκούρο / Aero
-- Notepad++ Dark
-- Nord Dark
-- Dracula
-
-The Windows/Aero modes use the Windows accent color when possible.
-
-## System information sidebar
-
-The right panel shows live system information:
-
-- computer type / architecture
-- Windows computer name, operating system and logged-in user
-- processor and CPU usage as a mini chart
-- RAM usage as a mini chart
-- disk used/free space as mini charts per local drive
-- active LAN/Wi‑Fi adapters, IPv4 and link speed as mini chart cards
-
-## Safety features
-
-- Scan does not change files.
-- Stop asks for confirmation.
-- Move deletes the source only after successful copy/size validation.
-- Undo last copy/move is available for the current session.
-- Downloads cleanup only touches files that were successfully processed from the current plan.
-- Windows Update cleanup uses supported DISM component cleanup instead of manually deleting WinSxS.
-
-## Build
-
-Open `LabFileCollector.sln` in Visual Studio 2022 and run:
-
-```text
-Clean Solution
-Rebuild Solution
-F5
-```
-
-## Publish portable EXE
+## Portable build
 
 ```powershell
 dotnet publish .\LabFileCollector.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:EnableCompressionInSingleFile=true
 ```
+
+Το αποτέλεσμα βρίσκεται στο:
+
+```text
+bin\Release\net8.0-windows\win-x64\publish
+```
+
+## Σημείωση admin
+
+Η εφαρμογή ζητά δικαιώματα διαχειριστή στην εκκίνηση, ώστε οι λειτουργίες cleanup/maintenance να μπορούν να τρέξουν χωρίς να κλείσει και να ξανανοίξει ο χρήστης την εφαρμογή.
+
+## Copyright
+
+© 2026 - Nyx Systems / School Lab File Collector

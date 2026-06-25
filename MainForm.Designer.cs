@@ -14,7 +14,7 @@ partial class MainForm
     private GroupBox grpDestination;
     private TableLayoutPanel destinationLayout;
     private Label lblPc;
-    private ComboBox cboPc;
+    private TextBox txtComputerName;
     private Button btnDetectPc;
     private Label lblDestinationRoot;
     private TextBox txtDestinationRoot;
@@ -29,6 +29,7 @@ partial class MainForm
     private Label lblSourceUserRoot;
     private TextBox txtSourceUserRoot;
     private Button btnApplySourceUserRoot;
+    private Button btnUseCurrentUserRoot;
     private CheckedListBox clbSources;
     private TextBox txtCustomSource;
     private Button btnAddSource;
@@ -55,6 +56,11 @@ partial class MainForm
     private Label lblMaintenanceNote;
     private GroupBox grpPreview;
     private TableLayoutPanel previewLayout;
+    private FlowLayoutPanel previewToolsLayout;
+    private Button btnSelectAllPreview;
+    private Button btnClearPreviewSelection;
+    private Button btnSelectFolderPreview;
+    private Button btnClearFolderPreview;
     private ListView lvPreview;
     private ColumnHeader colFile;
     private ColumnHeader colPlacement;
@@ -71,6 +77,8 @@ partial class MainForm
     private Button btnUndoLast;
     private Button btnOpenDestination;
     private Button btnOpenLog;
+    private Button btnMaintenance;
+    private Button btnHistory;
     private Button btnHelp;
     private Button btnAbout;
     private Label lblTheme;
@@ -95,10 +103,10 @@ partial class MainForm
         titleLayout = new FlowLayoutPanel();
         picLogo = new PictureBox();
         lblTitle = new Label();
-        grpDestination = new GroupBox();
+        grpDestination = new ModernGroupBox();
         destinationLayout = new TableLayoutPanel();
         lblPc = new Label();
-        cboPc = new ComboBox();
+        txtComputerName = new TextBox();
         btnDetectPc = new ModernButton();
         lblDestinationRoot = new Label();
         txtDestinationRoot = new TextBox();
@@ -108,27 +116,28 @@ partial class MainForm
         lblFinalPathCaption = new Label();
         lblFinalPath = new Label();
         splitOptions = new SplitContainer();
-        grpSources = new GroupBox();
+        grpSources = new ModernGroupBox();
         sourcesLayout = new TableLayoutPanel();
         lblSourceUserRoot = new Label();
         txtSourceUserRoot = new TextBox();
         btnApplySourceUserRoot = new ModernButton();
+        btnUseCurrentUserRoot = new ModernButton();
         clbSources = new CheckedListBox();
         txtCustomSource = new TextBox();
         btnAddSource = new ModernButton();
         btnRemoveSource = new ModernButton();
         rightOptionsLayout = new TableLayoutPanel();
-        grpFileTypes = new GroupBox();
+        grpFileTypes = new ModernGroupBox();
         fileTypesLayout = new TableLayoutPanel();
         rbAllFiles = new RadioButton();
         rbSelectedExtensions = new RadioButton();
         txtExtensions = new TextBox();
-        grpAction = new GroupBox();
+        grpAction = new ModernGroupBox();
         actionLayout = new FlowLayoutPanel();
         rbScanOnly = new RadioButton();
         rbCopy = new RadioButton();
         rbMove = new RadioButton();
-        grpMaintenance = new GroupBox();
+        grpMaintenance = new ModernGroupBox();
         maintenanceLayout = new TableLayoutPanel();
         chkCleanUserTemp = new CheckBox();
         chkCleanWindowsTemp = new CheckBox();
@@ -137,8 +146,13 @@ partial class MainForm
         chkOptimizeDrive = new CheckBox();
         chkCleanWindowsUpdateComponents = new CheckBox();
         lblMaintenanceNote = new Label();
-        grpPreview = new GroupBox();
+        grpPreview = new ModernGroupBox();
         previewLayout = new TableLayoutPanel();
+        previewToolsLayout = new FlowLayoutPanel();
+        btnSelectAllPreview = new ModernButton();
+        btnClearPreviewSelection = new ModernButton();
+        btnSelectFolderPreview = new ModernButton();
+        btnClearFolderPreview = new ModernButton();
         lvPreview = new ListView();
         colFile = new ColumnHeader();
         colPlacement = new ColumnHeader();
@@ -155,6 +169,8 @@ partial class MainForm
         btnUndoLast = new ModernButton();
         btnOpenDestination = new ModernButton();
         btnOpenLog = new ModernButton();
+        btnMaintenance = new ModernButton();
+        btnHistory = new ModernButton();
         btnHelp = new ModernButton();
         btnAbout = new ModernButton();
         lblTheme = new Label();
@@ -181,6 +197,7 @@ partial class MainForm
         maintenanceLayout.SuspendLayout();
         grpPreview.SuspendLayout();
         previewLayout.SuspendLayout();
+        previewToolsLayout.SuspendLayout();
         bottomLayout.SuspendLayout();
         buttonsLayout.SuspendLayout();
         SuspendLayout();
@@ -192,18 +209,16 @@ partial class MainForm
         rootLayout.Controls.Add(titleLayout, 0, 0);
         rootLayout.Controls.Add(grpDestination, 0, 1);
         rootLayout.Controls.Add(splitOptions, 0, 2);
-        rootLayout.Controls.Add(grpMaintenance, 0, 3);
-        rootLayout.Controls.Add(grpPreview, 0, 4);
-        rootLayout.Controls.Add(bottomLayout, 0, 5);
+        rootLayout.Controls.Add(grpPreview, 0, 3);
+        rootLayout.Controls.Add(bottomLayout, 0, 4);
         rootLayout.Dock = DockStyle.Fill;
         rootLayout.Location = new Point(0, 0);
         rootLayout.Name = "rootLayout";
         rootLayout.Padding = new Padding(12);
-        rootLayout.RowCount = 6;
+        rootLayout.RowCount = 5;
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 275F));
-        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 170F));
+        rootLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 340F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         rootLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rootLayout.Size = new Size(1224, 930);
@@ -265,7 +280,7 @@ partial class MainForm
         destinationLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         destinationLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         destinationLayout.Controls.Add(lblPc, 0, 0);
-        destinationLayout.Controls.Add(cboPc, 1, 0);
+        destinationLayout.Controls.Add(txtComputerName, 1, 0);
         destinationLayout.Controls.Add(btnDetectPc, 2, 0);
         destinationLayout.Controls.Add(btnSaveSettings, 4, 0);
         destinationLayout.Controls.Add(lblDestinationRoot, 0, 1);
@@ -293,19 +308,18 @@ partial class MainForm
         lblPc.Padding = new Padding(0, 6, 8, 0);
         lblPc.Size = new Size(126, 35);
         lblPc.TabIndex = 0;
-        lblPc.Text = "Όνομα υπολογιστή:";
+        lblPc.Text = "Υπολογιστής Windows:";
         // 
-        // cboPc
+        // txtComputerName
         // 
-        cboPc.Dock = DockStyle.Left;
-        cboPc.DropDownStyle = ComboBoxStyle.DropDown;
-        cboPc.FormattingEnabled = true;
-        cboPc.Location = new Point(135, 3);
-        cboPc.Name = "cboPc";
-        cboPc.Size = new Size(260, 28);
-        cboPc.TabIndex = 1;
-        cboPc.SelectedIndexChanged += cboPc_SelectedIndexChanged;
-        cboPc.TextChanged += cboPc_TextChanged;
+        txtComputerName.Dock = DockStyle.Left;
+        txtComputerName.Font = new Font("Consolas", 9F);
+        txtComputerName.Location = new Point(135, 3);
+        txtComputerName.Name = "txtComputerName";
+        txtComputerName.ReadOnly = true;
+        txtComputerName.Size = new Size(260, 25);
+        txtComputerName.TabIndex = 1;
+        txtComputerName.TabStop = false;
         // 
         // btnDetectPc
         // 
@@ -314,7 +328,7 @@ partial class MainForm
         btnDetectPc.Name = "btnDetectPc";
         btnDetectPc.Size = new Size(96, 29);
         btnDetectPc.TabIndex = 2;
-        btnDetectPc.Text = "Από Windows";
+        btnDetectPc.Text = "Ανανέωση";
         btnDetectPc.UseVisualStyleBackColor = true;
         btnDetectPc.Click += btnDetectPc_Click;
         // 
@@ -410,7 +424,7 @@ partial class MainForm
         // splitOptions.Panel2
         // 
         splitOptions.Panel2.Controls.Add(rightOptionsLayout);
-        splitOptions.Size = new Size(1194, 269);
+        splitOptions.Size = new Size(1194, 324);
         splitOptions.SplitterDistance = 560;
         splitOptions.TabIndex = 2;
         // 
@@ -421,23 +435,25 @@ partial class MainForm
         grpSources.Location = new Point(0, 0);
         grpSources.Name = "grpSources";
         grpSources.Padding = new Padding(10);
-        grpSources.Size = new Size(560, 269);
+        grpSources.Size = new Size(560, 324);
         grpSources.TabIndex = 0;
         grpSources.TabStop = false;
         grpSources.Text = "Πηγές αρχείων";
         // 
         // sourcesLayout
         // 
-        sourcesLayout.ColumnCount = 2;
+        sourcesLayout.ColumnCount = 3;
         sourcesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         sourcesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        sourcesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         sourcesLayout.Controls.Add(lblSourceUserRoot, 0, 0);
-        sourcesLayout.SetColumnSpan(lblSourceUserRoot, 2);
+        sourcesLayout.SetColumnSpan(lblSourceUserRoot, 3);
         sourcesLayout.Controls.Add(txtSourceUserRoot, 0, 1);
-        sourcesLayout.Controls.Add(btnApplySourceUserRoot, 1, 1);
+        sourcesLayout.Controls.Add(btnUseCurrentUserRoot, 1, 1);
+        sourcesLayout.Controls.Add(btnApplySourceUserRoot, 2, 1);
         sourcesLayout.Controls.Add(clbSources, 0, 2);
         sourcesLayout.Controls.Add(txtCustomSource, 0, 3);
-        sourcesLayout.Controls.Add(btnAddSource, 1, 3);
+        sourcesLayout.Controls.Add(btnAddSource, 2, 3);
         sourcesLayout.Controls.Add(btnRemoveSource, 0, 4);
         sourcesLayout.Dock = DockStyle.Fill;
         sourcesLayout.Location = new Point(10, 30);
@@ -448,7 +464,7 @@ partial class MainForm
         sourcesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         sourcesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         sourcesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        sourcesLayout.Size = new Size(540, 229);
+        sourcesLayout.Size = new Size(540, 284);
         sourcesLayout.TabIndex = 0;
         // 
         // lblSourceUserRoot
@@ -459,7 +475,7 @@ partial class MainForm
         lblSourceUserRoot.Name = "lblSourceUserRoot";
         lblSourceUserRoot.Size = new Size(534, 20);
         lblSourceUserRoot.TabIndex = 0;
-        lblSourceUserRoot.Text = "Βάση χρήστη πηγών:";
+        lblSourceUserRoot.Text = "Προφίλ χρήστη πηγών:";
         // 
         // txtSourceUserRoot
         // 
@@ -467,9 +483,20 @@ partial class MainForm
         txtSourceUserRoot.Font = new Font("Consolas", 9F);
         txtSourceUserRoot.Location = new Point(3, 23);
         txtSourceUserRoot.Name = "txtSourceUserRoot";
-        txtSourceUserRoot.PlaceholderText = @"C:\Users\Student";
-        txtSourceUserRoot.Size = new Size(436, 25);
+        txtSourceUserRoot.PlaceholderText = @"%USERPROFILE% ή C:\Users\Student";
+        txtSourceUserRoot.Size = new Size(330, 25);
         txtSourceUserRoot.TabIndex = 1;
+        // 
+        // btnUseCurrentUserRoot
+        // 
+        btnUseCurrentUserRoot.AutoSize = true;
+        btnUseCurrentUserRoot.Location = new Point(339, 23);
+        btnUseCurrentUserRoot.Name = "btnUseCurrentUserRoot";
+        btnUseCurrentUserRoot.Size = new Size(100, 30);
+        btnUseCurrentUserRoot.TabIndex = 2;
+        btnUseCurrentUserRoot.Text = "Τρέχων";
+        btnUseCurrentUserRoot.UseVisualStyleBackColor = true;
+        btnUseCurrentUserRoot.Click += btnUseCurrentUserRoot_Click;
         // 
         // btnApplySourceUserRoot
         // 
@@ -477,36 +504,38 @@ partial class MainForm
         btnApplySourceUserRoot.Location = new Point(445, 23);
         btnApplySourceUserRoot.Name = "btnApplySourceUserRoot";
         btnApplySourceUserRoot.Size = new Size(92, 30);
-        btnApplySourceUserRoot.TabIndex = 2;
+        btnApplySourceUserRoot.TabIndex = 3;
         btnApplySourceUserRoot.Text = "Εφαρμογή";
         btnApplySourceUserRoot.UseVisualStyleBackColor = true;
         btnApplySourceUserRoot.Click += btnApplySourceUserRoot_Click;
         // 
         // clbSources
         // 
-        sourcesLayout.SetColumnSpan(clbSources, 2);
+        sourcesLayout.SetColumnSpan(clbSources, 3);
         clbSources.CheckOnClick = true;
         clbSources.Dock = DockStyle.Fill;
         clbSources.FormattingEnabled = true;
         clbSources.HorizontalScrollbar = true;
+        clbSources.IntegralHeight = false;
+        clbSources.ScrollAlwaysVisible = true;
         clbSources.Location = new Point(3, 59);
         clbSources.Name = "clbSources";
-        clbSources.Size = new Size(534, 100);
+        clbSources.Size = new Size(534, 155);
         clbSources.TabIndex = 3;
         // 
         // txtCustomSource
         // 
         txtCustomSource.Dock = DockStyle.Fill;
-        txtCustomSource.Location = new Point(3, 135);
+        txtCustomSource.Location = new Point(3, 190);
         txtCustomSource.Name = "txtCustomSource";
         txtCustomSource.PlaceholderText = @"Πρόσθεσε custom path, π.χ. D:\Μαθητές";
-        txtCustomSource.Size = new Size(436, 27);
+        txtCustomSource.Size = new Size(330, 27);
         txtCustomSource.TabIndex = 4;
         // 
         // btnAddSource
         // 
         btnAddSource.AutoSize = true;
-        btnAddSource.Location = new Point(445, 135);
+        btnAddSource.Location = new Point(445, 190);
         btnAddSource.Name = "btnAddSource";
         btnAddSource.Size = new Size(92, 30);
         btnAddSource.TabIndex = 5;
@@ -517,7 +546,7 @@ partial class MainForm
         // btnRemoveSource
         // 
         btnRemoveSource.AutoSize = true;
-        btnRemoveSource.Location = new Point(3, 171);
+        btnRemoveSource.Location = new Point(3, 226);
         btnRemoveSource.Name = "btnRemoveSource";
         btnRemoveSource.Size = new Size(220, 30);
         btnRemoveSource.TabIndex = 6;
@@ -710,7 +739,7 @@ partial class MainForm
         chkCleanUserTemp.Name = "chkCleanUserTemp";
         chkCleanUserTemp.Size = new Size(250, 24);
         chkCleanUserTemp.TabIndex = 0;
-        chkCleanUserTemp.Text = "Καθάρισμα Temp χρήστη Student";
+        chkCleanUserTemp.Text = "Καθάρισμα Temp επιλεγμένου χρήστη";
         chkCleanUserTemp.UseVisualStyleBackColor = true;
         // 
         // chkCleanWindowsTemp
@@ -779,10 +808,10 @@ partial class MainForm
         // 
         grpPreview.Controls.Add(previewLayout);
         grpPreview.Dock = DockStyle.Fill;
-        grpPreview.Location = new Point(15, 513);
+        grpPreview.Location = new Point(15, 528);
         grpPreview.Name = "grpPreview";
         grpPreview.Padding = new Padding(10);
-        grpPreview.Size = new Size(1194, 260);
+        grpPreview.Size = new Size(1194, 300);
         grpPreview.TabIndex = 3;
         grpPreview.TabStop = false;
         grpPreview.Text = "Preview αρχείων - διατηρείται η δομή φακέλων";
@@ -791,26 +820,89 @@ partial class MainForm
         // 
         previewLayout.ColumnCount = 1;
         previewLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        previewLayout.Controls.Add(lvPreview, 0, 0);
-        previewLayout.Controls.Add(lblSummary, 0, 1);
+        previewLayout.Controls.Add(previewToolsLayout, 0, 0);
+        previewLayout.Controls.Add(lvPreview, 0, 1);
+        previewLayout.Controls.Add(lblSummary, 0, 2);
         previewLayout.Dock = DockStyle.Fill;
         previewLayout.Location = new Point(10, 30);
         previewLayout.Name = "previewLayout";
-        previewLayout.RowCount = 2;
+        previewLayout.RowCount = 3;
+        previewLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         previewLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         previewLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         previewLayout.Size = new Size(1174, 143);
         previewLayout.TabIndex = 0;
         // 
+        // previewToolsLayout
+        // 
+        previewToolsLayout.AutoSize = true;
+        previewToolsLayout.Controls.Add(btnSelectAllPreview);
+        previewToolsLayout.Controls.Add(btnClearPreviewSelection);
+        previewToolsLayout.Controls.Add(btnSelectFolderPreview);
+        previewToolsLayout.Controls.Add(btnClearFolderPreview);
+        previewToolsLayout.Dock = DockStyle.Fill;
+        previewToolsLayout.Location = new Point(3, 3);
+        previewToolsLayout.Name = "previewToolsLayout";
+        previewToolsLayout.Size = new Size(1168, 35);
+        previewToolsLayout.TabIndex = 0;
+        previewToolsLayout.WrapContents = true;
+        // 
+        // btnSelectAllPreview
+        // 
+        btnSelectAllPreview.AutoSize = true;
+        btnSelectAllPreview.Location = new Point(3, 3);
+        btnSelectAllPreview.Name = "btnSelectAllPreview";
+        btnSelectAllPreview.Size = new Size(112, 29);
+        btnSelectAllPreview.TabIndex = 0;
+        btnSelectAllPreview.Text = "Επιλογή όλων";
+        btnSelectAllPreview.UseVisualStyleBackColor = true;
+        btnSelectAllPreview.Click += btnSelectAllPreview_Click;
+        // 
+        // btnClearPreviewSelection
+        // 
+        btnClearPreviewSelection.AutoSize = true;
+        btnClearPreviewSelection.Location = new Point(121, 3);
+        btnClearPreviewSelection.Name = "btnClearPreviewSelection";
+        btnClearPreviewSelection.Size = new Size(128, 29);
+        btnClearPreviewSelection.TabIndex = 1;
+        btnClearPreviewSelection.Text = "Αποεπιλογή όλων";
+        btnClearPreviewSelection.UseVisualStyleBackColor = true;
+        btnClearPreviewSelection.Click += btnClearPreviewSelection_Click;
+        // 
+        // btnSelectFolderPreview
+        // 
+        btnSelectFolderPreview.AutoSize = true;
+        btnSelectFolderPreview.Location = new Point(255, 3);
+        btnSelectFolderPreview.Name = "btnSelectFolderPreview";
+        btnSelectFolderPreview.Size = new Size(168, 29);
+        btnSelectFolderPreview.TabIndex = 2;
+        btnSelectFolderPreview.Text = "Επιλογή ίδιου φακέλου";
+        btnSelectFolderPreview.UseVisualStyleBackColor = true;
+        btnSelectFolderPreview.Click += btnSelectFolderPreview_Click;
+        // 
+        // btnClearFolderPreview
+        // 
+        btnClearFolderPreview.AutoSize = true;
+        btnClearFolderPreview.Location = new Point(429, 3);
+        btnClearFolderPreview.Name = "btnClearFolderPreview";
+        btnClearFolderPreview.Size = new Size(184, 29);
+        btnClearFolderPreview.TabIndex = 3;
+        btnClearFolderPreview.Text = "Απόρριψη ίδιου φακέλου";
+        btnClearFolderPreview.UseVisualStyleBackColor = true;
+        btnClearFolderPreview.Click += btnClearFolderPreview_Click;
+        // 
         // lvPreview
         // 
+        lvPreview.CheckBoxes = true;
         lvPreview.Columns.AddRange(new ColumnHeader[] { colFile, colPlacement, colFolder, colSize, colSource, colDestination });
         lvPreview.Dock = DockStyle.Fill;
         lvPreview.FullRowSelect = true;
         lvPreview.GridLines = true;
-        lvPreview.Location = new Point(3, 3);
+        lvPreview.HideSelection = false;
+        lvPreview.Scrollable = true;
+        lvPreview.Location = new Point(3, 44);
         lvPreview.Name = "lvPreview";
-        lvPreview.Size = new Size(1168, 107);
+        lvPreview.Size = new Size(1168, 69);
         lvPreview.TabIndex = 0;
         lvPreview.UseCompatibleStateImageBehavior = false;
         lvPreview.View = View.Details;
@@ -828,7 +920,7 @@ partial class MainForm
         // colFolder
         // 
         colFolder.Text = "Φάκελος / σχετικό path";
-        colFolder.Width = 220;
+        colFolder.Width = 260;
         // 
         // colSize
         // 
@@ -838,18 +930,18 @@ partial class MainForm
         // colSource
         // 
         colSource.Text = "Πηγή";
-        colSource.Width = 110;
+        colSource.Width = 260;
         // 
         // colDestination
         // 
         colDestination.Text = "Προορισμός";
-        colDestination.Width = 560;
+        colDestination.Width = 900;
         // 
         // lblSummary
         // 
         lblSummary.AutoSize = true;
         lblSummary.Dock = DockStyle.Fill;
-        lblSummary.Location = new Point(3, 113);
+        lblSummary.Location = new Point(3, 116);
         lblSummary.Name = "lblSummary";
         lblSummary.Padding = new Padding(0, 8, 0, 0);
         lblSummary.Size = new Size(1168, 28);
@@ -883,6 +975,8 @@ partial class MainForm
         buttonsLayout.Controls.Add(btnUndoLast);
         buttonsLayout.Controls.Add(btnOpenDestination);
         buttonsLayout.Controls.Add(btnOpenLog);
+        buttonsLayout.Controls.Add(btnMaintenance);
+        buttonsLayout.Controls.Add(btnHistory);
         buttonsLayout.Controls.Add(btnHelp);
         buttonsLayout.Controls.Add(btnAbout);
         buttonsLayout.Controls.Add(lblTheme);
@@ -890,8 +984,9 @@ partial class MainForm
         buttonsLayout.Dock = DockStyle.Fill;
         buttonsLayout.Location = new Point(3, 3);
         buttonsLayout.Name = "buttonsLayout";
-        buttonsLayout.Size = new Size(1188, 35);
+        buttonsLayout.Size = new Size(1188, 70);
         buttonsLayout.TabIndex = 0;
+        buttonsLayout.WrapContents = true;
         // 
         // btnScan
         // 
@@ -961,13 +1056,35 @@ partial class MainForm
         btnOpenLog.UseVisualStyleBackColor = true;
         btnOpenLog.Click += btnOpenLog_Click;
         // 
+        // btnMaintenance
+        // 
+        btnMaintenance.AutoSize = true;
+        btnMaintenance.Location = new Point(756, 3);
+        btnMaintenance.Name = "btnMaintenance";
+        btnMaintenance.Size = new Size(118, 29);
+        btnMaintenance.TabIndex = 6;
+        btnMaintenance.Text = "Καθάρισμα...";
+        btnMaintenance.UseVisualStyleBackColor = true;
+        btnMaintenance.Click += btnMaintenance_Click;
+        // 
+        // btnHistory
+        // 
+        btnHistory.AutoSize = true;
+        btnHistory.Location = new Point(880, 3);
+        btnHistory.Name = "btnHistory";
+        btnHistory.Size = new Size(90, 29);
+        btnHistory.TabIndex = 7;
+        btnHistory.Text = "Ιστορικό";
+        btnHistory.UseVisualStyleBackColor = true;
+        btnHistory.Click += btnHistory_Click;
+        // 
         // btnHelp
         // 
         btnHelp.AutoSize = true;
-        btnHelp.Location = new Point(756, 3);
+        btnHelp.Location = new Point(976, 3);
         btnHelp.Name = "btnHelp";
         btnHelp.Size = new Size(75, 29);
-        btnHelp.TabIndex = 6;
+        btnHelp.TabIndex = 8;
         btnHelp.Text = "Help";
         btnHelp.UseVisualStyleBackColor = true;
         btnHelp.Click += btnHelp_Click;
@@ -975,10 +1092,10 @@ partial class MainForm
         // btnAbout
         // 
         btnAbout.AutoSize = true;
-        btnAbout.Location = new Point(837, 3);
+        btnAbout.Location = new Point(1057, 3);
         btnAbout.Name = "btnAbout";
         btnAbout.Size = new Size(75, 29);
-        btnAbout.TabIndex = 7;
+        btnAbout.TabIndex = 9;
         btnAbout.Text = "About";
         btnAbout.UseVisualStyleBackColor = true;
         btnAbout.Click += btnAbout_Click;
@@ -986,21 +1103,21 @@ partial class MainForm
         // lblTheme
         // 
         lblTheme.AutoSize = true;
-        lblTheme.Location = new Point(927, 8);
+        lblTheme.Location = new Point(1147, 8);
         lblTheme.Margin = new Padding(12, 8, 3, 0);
         lblTheme.Name = "lblTheme";
         lblTheme.Size = new Size(49, 20);
-        lblTheme.TabIndex = 8;
+        lblTheme.TabIndex = 10;
         lblTheme.Text = "Θέμα:";
         // 
         // cboTheme
         // 
         cboTheme.DropDownStyle = ComboBoxStyle.DropDownList;
         cboTheme.FormattingEnabled = true;
-        cboTheme.Location = new Point(982, 3);
+        cboTheme.Location = new Point(1202, 3);
         cboTheme.Name = "cboTheme";
         cboTheme.Size = new Size(130, 28);
-        cboTheme.TabIndex = 9;
+        cboTheme.TabIndex = 11;
         cboTheme.SelectedIndexChanged += cboTheme_SelectedIndexChanged;
         // 
         // progressBar
@@ -1033,9 +1150,9 @@ partial class MainForm
         AutoScaleDimensions = new SizeF(8F, 20F);
         AutoScaleMode = AutoScaleMode.Font;
         AutoScroll = true;
-        ClientSize = new Size(1430, 900);
+        ClientSize = new Size(1430, 960);
         Controls.Add(rootLayout);
-        MinimumSize = new Size(1280, 780);
+        MinimumSize = new Size(1320, 880);
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "School Lab File Collector";
@@ -1065,6 +1182,8 @@ partial class MainForm
         maintenanceLayout.ResumeLayout(false);
         maintenanceLayout.PerformLayout();
         grpPreview.ResumeLayout(false);
+        previewToolsLayout.ResumeLayout(false);
+        previewToolsLayout.PerformLayout();
         previewLayout.ResumeLayout(false);
         previewLayout.PerformLayout();
         bottomLayout.ResumeLayout(false);

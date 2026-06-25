@@ -8,12 +8,13 @@
     <AssemblyName>LabFileCollector</AssemblyName>
     <RootNamespace>LabFileCollector</RootNamespace>
     <ApplicationIcon>Assets\LabFileCollector.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
-    <FileVersion>1.1.0.0</FileVersion>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <Company>School Lab Tools</Company>
+    <ApplicationManifest>Properties\app.manifest</ApplicationManifest>
+    <Version>1.6.1</Version>
+    <FileVersion>1.6.1.0</FileVersion>
+    <AssemblyVersion>1.6.1.0</AssemblyVersion>
+    <Company>Nyx Systems</Company>
     <Product>School Lab File Collector</Product>
-    <Copyright>© 2026 - School Lab File Collector</Copyright>
+    <Copyright>© 2026 - Nyx Systems / School Lab File Collector</Copyright>
   </PropertyGroup>
 
   <ItemGroup>

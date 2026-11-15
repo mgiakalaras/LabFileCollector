@@ -16,7 +16,7 @@ Portable έκδοση για Windows εργαστήρια πληροφορική
 - Ιστορικό ενεργειών.
 - Ξεχωριστό εργαλείο καθαρισμού υπολογιστή.
 - System sidebar με CPU, RAM, δίσκους, λειτουργικό, χρήστη login και δίκτυο.
-- Themes και νέο Nyx Systems branding.
+- Themes και Nyx Systems branding.
 
 ## Portable χρήση
 
